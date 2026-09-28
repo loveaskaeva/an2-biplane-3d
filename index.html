@@ -3365,10 +3365,12 @@ let hudT = 0;
 if (RENDER) {
   S.play = false; S.still = true; labelsOn = RTOK.includes('labels');
   const arg = RTOK[1] || 'geom';
+  const PH = RTOK.find(t => /^ph\d+$/.test(t));           // фаза колебаний для покадровой съёмки, градусы
+  if (PH) S.phase = +PH.slice(2) * Math.PI / 180;
   if (arg === 'geom') { S.tab = 'pre'; A.str.on = false; }
   else if (arg === 'slack') { S.tab = 'loads'; S.ny = ns.findIndex(v => Math.abs(v - 4.4) < 1e-6); S.dscale = 14; }
   else if (arg.startsWith('mode')) { S.tab = 'modes'; S.mode_i = (+arg.slice(4) || 1) - 1; S.amp = 0.55; }
-  else if (arg === 'flutter') { S.tab = 'flutter'; }
+  else if (arg === 'flutter') { S.tab = 'flutter'; S.amp = 0.55; }
   resize(); setView(RTOK[2] || 'iso');
 }
 
@@ -3399,10 +3401,10 @@ function frame(now) {
 }
 
 function frameAnalysis(dt) {
-  const ph = 2 * Math.PI * 0.7 * S.t;
+  const ph = S.phase != null ? S.phase : 2 * Math.PI * 0.7 * S.t;
   let U = null, sc = 0, slack = null, norm = 0;
-  if (S.tab === 'modes') { const m = D.modes[S.mode_i]; sc = S.still ? S.amp : S.amp * Math.sin(ph * (0.75 + 0.25 * m.f / D.modes[0].f)); U = m.u; norm = S.amp; }
-  else if (S.tab === 'flutter') { const c = Math.cos(ph), sn = Math.sin(ph); U = fl.re.map((r, i) => r.map((v, k) => v * c - fl.im[i][k] * sn)); sc = 0.45; norm = 0.45; }
+  if (S.tab === 'modes') { const m = D.modes[S.mode_i]; sc = S.still ? (S.phase != null ? S.amp * Math.sin(S.phase) : S.amp) : S.amp * Math.sin(ph * (0.75 + 0.25 * m.f / D.modes[0].f)); U = m.u; norm = S.amp; }
+  else if (S.tab === 'flutter') { const c = Math.cos(ph), sn = Math.sin(ph); U = fl.re.map((r, i) => r.map((v, k) => v * c - fl.im[i][k] * sn)); sc = RENDER ? 0.9 : 0.45; norm = sc; }
   else if (S.tab === 'loads') { const c = D.loads.cases[S.pre]; U = c.u[S.ny]; let mz = 1e-6; U.forEach(u => { mz = Math.max(mz, Math.abs(u[2])); });
     slack = {}; ['front', 'rear', 'land'].forEach(w => slack[w] = c.T[w][S.ny] <= 0.5); sc = S.dscale; norm = mz * S.dscale; }
   else { const k = S.lam; A.str.f = { front: PR.wire_f.front[k] / 10, rear: PR.wire_f.rear[k] / 10, land: PR.wire_f.land[k] / 10 }; A.str.phase = 2 * Math.PI * 1.2 * S.t; A.str.amp = 0.08; }
