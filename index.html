@@ -411,15 +411,15 @@ footer{color:var(--muted); font-size:12px; max-width:140ch}
 
       <div id="p-tunnel" class="scroll" role="tabpanel" aria-labelledby="m-tunnel" hidden>
         <section class="pane">
-          <p>Самолёт закреплён в условной аэродинамической трубе и сбалансирован на перегрузку 1 при заданной скорости. За пределами скоростей полёта видно, как коробка теряет устойчивость: сначала дивергенция при 663 км/ч, затем флаттер при 809 км/ч.</p>
+          <p id="tIntro">Самолёт закреплён в условной аэродинамической трубе и сбалансирован на перегрузку 1 при заданной скорости. За пределами скоростей полёта видно, как коробка теряет устойчивость.</p>
           <div class="sec">
             <div class="row"><label for="tV">Скорость потока</label><input id="tV" type="range" min="0" max="1000" step="5" value="200"><span class="val" id="tVV"></span></div>
             <div class="scale" id="tScale" aria-hidden="true"></div>
             <div class="btns">
               <button class="btn" data-tv="300"><span>300 км/ч</span><small>ограничение РЛЭ</small></button>
               <button class="btn" data-tv="400"><span>400 км/ч</span><small>требуемый запас 1,2·V<sub>D</sub></small></button>
-              <button class="btn" data-tv="655"><span>655 км/ч</span><small>перед дивергенцией</small></button>
-              <button class="btn" data-tv="835"><span>835 км/ч</span><small>за границей флаттера</small></button>
+              <button class="btn" data-tv="0" id="tvA"><span>—</span><small>перед границей устойчивости</small></button>
+              <button class="btn" data-tv="0" id="tvB"><span>—</span><small>за границей устойчивости</small></button>
             </div>
             <div class="row"><button class="btn danger" id="tReset" style="flex:1"><span>Сброс</span><small>восстановить коробку</small></button></div>
           </div>
@@ -3247,6 +3247,18 @@ function manualInputs(dt) {
 const tV = $('#tV');
 function setTV() { S.tV = +tV.value; $('#tVV').textContent = S.tV + ' км/ч'; }
 tV.oninput = setTV; setTV();
+// кнопки у первой критической скорости и текст режима берут значения из расчёта: флаттер или дивергенция,
+// смотря что наступает раньше
+{
+  const vf = fl.V * 3.6, vd = fl.Vdiv * 3.6, r5 = v => Math.round(v / 5) * 5;
+  const flutterFirst = vf < vd, v1 = Math.min(vf, vd);
+  const setBtn = (id, v, t) => { const b = $('#' + id); b.dataset.tv = v; b.innerHTML = `<span>${v} км/ч</span><small>${t}</small>`; };
+  setBtn('tvA', r5(v1 * 0.95), flutterFirst ? 'перед флаттером' : 'перед дивергенцией');
+  setBtn('tvB', r5(v1 * 1.04), flutterFirst ? 'за границей флаттера' : 'за границей дивергенции');
+  $('#tIntro').textContent += flutterFirst
+    ? ` По расчёту сначала наступает флаттер при ${fmt(vf, 0)} км/ч, дивергенция при ${fmt(vd, 0)} км/ч.`
+    : ` По расчёту сначала наступает дивергенция при ${fmt(vd, 0)} км/ч, затем флаттер при ${fmt(vf, 0)} км/ч.`;
+}
 document.querySelectorAll('[data-tv]').forEach(b => b.onclick = () => { tV.value = b.dataset.tv; setTV(); });
 const tpos = v => `${(v / 1000 * 100).toFixed(1)}%`;
 $('#tScale').innerHTML = [0, 200, 400, 600, 800, 1000].map(v => `<span style="left:${tpos(v)}">${v}</span>`).join('');
